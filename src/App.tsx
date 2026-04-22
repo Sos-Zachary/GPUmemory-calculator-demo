@@ -605,7 +605,7 @@ function AppContent() {
                   <>
                     <FormulaTooltip tip="模型总参数量（Billion）">{model.totalParams}B</FormulaTooltip>
                     {' × '}
-                    <FormulaTooltip tip="量化精度，每参数字节数">{quant.bytesPerParam}B</FormulaTooltip>
+                    <FormulaTooltip tip="量化精度，每参数字节数">{quant.bytesPerParam}byte</FormulaTooltip>
                     {' × '}
                     <FormulaTooltip tip="Billion 转实际数值">10⁹</FormulaTooltip>
                     {' / '}
@@ -632,7 +632,7 @@ function AppContent() {
                     {' × '}
                     <FormulaTooltip tip="并发请求数">{concurrency}</FormulaTooltip>
                     {' × '}
-                    <FormulaTooltip tip="KV Cache 量化精度（每参数字节数）">{quant.bits <= 4 ? 2 : quant.bytesPerParam}B</FormulaTooltip>
+                    <FormulaTooltip tip="KV Cache 量化精度（每参数字节数）">{quant.bits <= 4 ? 2 : quant.bytesPerParam}byte</FormulaTooltip>
                     {' / '}
                     <FormulaTooltip tip="字节转 GB">1024³</FormulaTooltip>
                   </>
@@ -653,7 +653,7 @@ function AppContent() {
                     {' × '}
                     <FormulaTooltip tip="经验系数，表示中间状态数">18</FormulaTooltip>
                     {' × '}
-                    <FormulaTooltip tip="激活值数据类型字节数">{quant.bytesPerParam}B</FormulaTooltip>
+                    <FormulaTooltip tip="激活值数据类型字节数">{quant.bytesPerParam}byte</FormulaTooltip>
                     {' / '}
                     <FormulaTooltip tip="字节转 GB">1024³</FormulaTooltip>
                   </>
