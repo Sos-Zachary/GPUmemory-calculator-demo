@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
+import { Tooltip as ShadTooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 
 /* =====================================
@@ -600,28 +601,81 @@ function AppContent() {
             <div className="space-y-2 mt-2">
               <FormulaBlock
                 title="模型权重"
-                formula={`${model.totalParams}B × ${quant.bytesPerParam}B × 10⁹ / 1024³`}
+                formula={
+                  <>
+                    <FormulaTooltip tip="模型总参数量（Billion）">{model.totalParams}B</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="量化精度，每参数字节数">{quant.bytesPerParam}B</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="Billion 转实际数值">10⁹</FormulaTooltip>
+                    {' / '}
+                    <FormulaTooltip tip="字节转 GB">1024³</FormulaTooltip>
+                  </>
+                }
                 result={`${vram.modelWeights.toFixed(2)} GB`}
                 color="#3b82f6"
                 isDark={isDark}
               />
               <FormulaBlock
                 title="KV Cache"
-                formula={`2 × ${model.layers} × ${model.numKVHeads} × ${model.headDim} × ${(contextLength / 1024).toFixed(0)}K × ${concurrency} × ${quant.bits <= 4 ? 2 : quant.bytesPerParam}B / 1024³`}
+                formula={
+                  <>
+                    <FormulaTooltip tip="Key 和 Value 两个张量">2</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="Transformer 层数">{model.layers}</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="KV 注意力头数">{model.numKVHeads}</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="每个注意力头的维度">{model.headDim}</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="上下文长度（token 数）">{(contextLength / 1024).toFixed(0)}K</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="并发请求数">{concurrency}</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="KV Cache 量化精度（每参数字节数）">{quant.bits <= 4 ? 2 : quant.bytesPerParam}B</FormulaTooltip>
+                    {' / '}
+                    <FormulaTooltip tip="字节转 GB">1024³</FormulaTooltip>
+                  </>
+                }
                 result={`${vram.kvCache.toFixed(2)} GB`}
                 color="#f59e0b"
                 isDark={isDark}
               />
               <FormulaBlock
                 title="激活值"
-                formula={`${concurrency} × ${(contextLength / 1024).toFixed(0)}K × ${model.hiddenSize} × 18 × ${quant.bytesPerParam}B / 1024³`}
+                formula={
+                  <>
+                    <FormulaTooltip tip="并发请求数">{concurrency}</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="上下文长度（token 数）">{(contextLength / 1024).toFixed(0)}K</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="隐藏层维度">{model.hiddenSize}</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="经验系数，表示中间状态数">18</FormulaTooltip>
+                    {' × '}
+                    <FormulaTooltip tip="激活值数据类型字节数">{quant.bytesPerParam}B</FormulaTooltip>
+                    {' / '}
+                    <FormulaTooltip tip="字节转 GB">1024³</FormulaTooltip>
+                  </>
+                }
                 result={`${vram.activations.toFixed(2)} GB`}
                 color="#10b981"
                 isDark={isDark}
               />
               <FormulaBlock
                 title="引擎开销"
-                formula={`(${vram.modelWeights.toFixed(1)} + ${vram.kvCache.toFixed(1)} + ${vram.activations.toFixed(1)}) × ${(engine.overheadFactor * 100).toFixed(0)}%`}
+                formula={
+                  <>
+                    {'('}
+                    <FormulaTooltip tip="模型权重显存">{vram.modelWeights.toFixed(1)}</FormulaTooltip>
+                    {' + '}
+                    <FormulaTooltip tip="KV Cache 显存">{vram.kvCache.toFixed(1)}</FormulaTooltip>
+                    {' + '}
+                    <FormulaTooltip tip="激活值显存">{vram.activations.toFixed(1)}</FormulaTooltip>
+                    {') × '}
+                    <FormulaTooltip tip="推理引擎额外开销比例">{(engine.overheadFactor * 100).toFixed(0)}%</FormulaTooltip>
+                  </>
+                }
                 result={`${vram.engineOverhead.toFixed(2)} GB`}
                 color="#8b5cf6"
                 isDark={isDark}
@@ -733,6 +787,21 @@ function AppContent() {
 /* =====================================
    Formula Block Component
    ===================================== */
+function FormulaTooltip({ children, tip }: { children: React.ReactNode; tip: string }) {
+  return (
+    <ShadTooltip>
+      <TooltipTrigger asChild>
+        <span className="cursor-help underline decoration-dotted underline-offset-2" style={{ textDecorationColor: 'rgba(148,163,184,0.5)' }}>
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[220px] text-center text-xs">
+        <p>{tip}</p>
+      </TooltipContent>
+    </ShadTooltip>
+  );
+}
+
 function FormulaBlock({
   title,
   formula,
@@ -741,7 +810,7 @@ function FormulaBlock({
   isDark,
 }: {
   title: string;
-  formula: string;
+  formula: React.ReactNode;
   result: string;
   color: string;
   isDark: boolean;
