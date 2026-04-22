@@ -1,0 +1,341 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* =====================================
+   Theme System - CSS Variables
+   ===================================== */
+
+.theme-dark {
+  /* Base */
+  --app-bg: #0b0f19;
+  --app-bg-gradient-from: #0b0f19;
+  --app-bg-gradient-via: #0f1525;
+  --app-bg-gradient-to: #0b0f19;
+  --app-fg: #f1f5f9;
+  --app-fg-secondary: #94a3b8;
+  --app-fg-muted: #64748b;
+
+  /* Header */
+  --header-bg: rgba(11, 15, 25, 0.85);
+  --header-border: rgba(51, 65, 85, 0.5);
+
+  /* Cards */
+  --card-bg: rgba(15, 23, 42, 0.65);
+  --card-bg-hover: rgba(15, 23, 42, 0.8);
+  --card-border: rgba(51, 65, 85, 0.6);
+  --card-border-hover: rgba(71, 85, 105, 0.8);
+  --card-inner-bg: rgba(30, 41, 59, 0.5);
+
+  /* Total VRAM card */
+  --total-card-bg-from: rgba(30, 41, 59, 0.8);
+  --total-card-bg-to: rgba(15, 23, 42, 0.8);
+  --total-card-border: rgba(71, 85, 105, 0.5);
+
+  /* Select / Input */
+  --select-bg: #1e293b;
+  --select-border: #334155;
+  --select-fg: #f1f5f9;
+  --select-hover-bg: #334155;
+  --dropdown-bg: #1e293b;
+  --dropdown-border: #334155;
+
+  /* Slider */
+  --slider-track: #1e293b;
+  --slider-range: linear-gradient(90deg, #3b82f6, #06b6d4);
+  --slider-thumb: #3b82f6;
+  --slider-thumb-border: #1e293b;
+
+  /* Badge */
+  --badge-outline-border: rgba(51, 65, 85, 0.8);
+  --badge-outline-fg: #94a3b8;
+
+  /* Separator */
+  --separator: rgba(51, 65, 85, 0.5);
+
+  /* Chart */
+  --chart-grid: #1e293b;
+  --chart-axis: #475569;
+  --chart-tooltip-bg: #0f172a;
+  --chart-tooltip-border: #1e293b;
+  --chart-label: #94a3b8;
+
+  /* Accent cards */
+  --accent-blue-bg-from: rgba(30, 58, 138, 0.2);
+  --accent-blue-bg-to: rgba(15, 23, 42, 0.6);
+  --accent-blue-border: rgba(59, 130, 246, 0.25);
+  --accent-blue-fg: #60a5fa;
+
+  --accent-amber-bg-from: rgba(146, 64, 14, 0.2);
+  --accent-amber-bg-to: rgba(15, 23, 42, 0.6);
+  --accent-amber-border: rgba(245, 158, 11, 0.25);
+  --accent-amber-fg: #fbbf24;
+
+  /* Formula */
+  --formula-bg: rgba(30, 41, 59, 0.3);
+  --formula-code-bg: rgba(15, 23, 42, 0.5);
+  --formula-fg: #94a3b8;
+  --formula-desc: #64748b;
+
+  /* Footer */
+  --footer-border: rgba(51, 65, 85, 0.5);
+  --footer-fg: #475569;
+
+  /* Scrollbar */
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #334155;
+  --scrollbar-thumb-hover: #475569;
+
+  /* GPU rec */
+  --gpu-rec-bg: rgba(30, 41, 59, 0.5);
+  --gpu-rec-border: rgba(51, 65, 85, 0.6);
+  --gpu-rec-best-bg: rgba(59, 130, 246, 0.08);
+  --gpu-rec-best-border: rgba(59, 130, 246, 0.3);
+}
+
+.theme-light {
+  /* Base */
+  --app-bg: #f8fafc;
+  --app-bg-gradient-from: #f8fafc;
+  --app-bg-gradient-via: #f1f5f9;
+  --app-bg-gradient-to: #e2e8f0;
+  --app-fg: #0f172a;
+  --app-fg-secondary: #475569;
+  --app-fg-muted: #64748b;
+
+  /* Header */
+  --header-bg: rgba(248, 250, 252, 0.9);
+  --header-border: rgba(203, 213, 225, 0.8);
+
+  /* Cards */
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-bg-hover: rgba(255, 255, 255, 0.95);
+  --card-border: rgba(203, 213, 225, 0.8);
+  --card-border-hover: rgba(148, 163, 184, 0.6);
+  --card-inner-bg: rgba(241, 245, 249, 0.8);
+
+  /* Total VRAM card */
+  --total-card-bg-from: rgba(255, 255, 255, 0.95);
+  --total-card-bg-to: rgba(248, 250, 252, 0.95);
+  --total-card-border: rgba(203, 213, 225, 0.9);
+
+  /* Select / Input */
+  --select-bg: #ffffff;
+  --select-border: #cbd5e1;
+  --select-fg: #0f172a;
+  --select-hover-bg: #f1f5f9;
+  --dropdown-bg: #ffffff;
+  --dropdown-border: #cbd5e1;
+
+  /* Slider */
+  --slider-track: #e2e8f0;
+  --slider-range: linear-gradient(90deg, #2563eb, #0891b2);
+  --slider-thumb: #2563eb;
+  --slider-thumb-border: #ffffff;
+
+  /* Badge */
+  --badge-outline-border: rgba(148, 163, 184, 0.6);
+  --badge-outline-fg: #475569;
+
+  /* Separator */
+  --separator: rgba(203, 213, 225, 0.6);
+
+  /* Chart */
+  --chart-grid: #e2e8f0;
+  --chart-axis: #64748b;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #e2e8f0;
+  --chart-label: #475569;
+
+  /* Accent cards */
+  --accent-blue-bg-from: rgba(219, 234, 254, 0.5);
+  --accent-blue-bg-to: rgba(255, 255, 255, 0.8);
+  --accent-blue-border: rgba(59, 130, 246, 0.3);
+  --accent-blue-fg: #1d4ed8;
+
+  --accent-amber-bg-from: rgba(254, 243, 199, 0.5);
+  --accent-amber-bg-to: rgba(255, 255, 255, 0.8);
+  --accent-amber-border: rgba(245, 158, 11, 0.3);
+  --accent-amber-fg: #b45309;
+
+  /* Formula */
+  --formula-bg: rgba(241, 245, 249, 0.8);
+  --formula-code-bg: rgba(248, 250, 252, 0.9);
+  --formula-fg: #475569;
+  --formula-desc: #64748b;
+
+  /* Footer */
+  --footer-border: rgba(203, 213, 225, 0.6);
+  --footer-fg: #94a3b8;
+
+  /* Scrollbar */
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+
+  /* GPU rec */
+  --gpu-rec-bg: rgba(241, 245, 249, 0.8);
+  --gpu-rec-border: rgba(203, 213, 225, 0.8);
+  --gpu-rec-best-bg: rgba(59, 130, 246, 0.06);
+  --gpu-rec-best-border: rgba(59, 130, 246, 0.25);
+}
+
+/* =====================================
+   Global Styles
+   ===================================== */
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Slider custom styling */
+[data-slot="slider-track"] {
+  background: var(--slider-track) !important;
+  height: 6px !important;
+}
+[data-slot="slider-range"] {
+  background: var(--slider-range) !important;
+}
+[data-slot="slider-thumb"] {
+  background: var(--slider-thumb) !important;
+  border: 2px solid var(--slider-thumb-border) !important;
+  width: 18px !important;
+  height: 18px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
+}
+
+/* Select & Dropdown theming */
+.theme-light [role="listbox"] {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+.theme-light [role="option"] {
+  color: #0f172a !important;
+}
+.theme-light [role="option"]:hover,
+.theme-light [role="option"][data-highlighted] {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.theme-dark [role="listbox"] {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+.theme-dark [role="option"] {
+  color: #f1f5f9 !important;
+}
+.theme-dark [role="option"]:hover,
+.theme-dark [role="option"][data-highlighted] {
+  background: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Recharts tooltip theming */
+.theme-light .recharts-default-tooltip {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+.theme-dark .recharts-default-tooltip {
+  background-color: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+
+/* Animation for value updates */
+@keyframes valuePulse {
+  0% { opacity: 0.6; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.01); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.value-animate {
+  animation: valuePulse 0.25s ease-out;
+}
+
+body {
+  font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.font-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+}
