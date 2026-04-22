@@ -47,7 +47,7 @@ The calculator uses industry-standard simplified estimation formulas:
 ### 1. Model Weights
 
 $$
-\text{Model Weights} = \frac{\text{totalParams} \times \text{bytesPerParam}}{2^{30}} \text{ GB}
+\text{Model Weights} = \frac{\text{totalParams} \times \text{bytesPerParam}}{1024^{3}} \text{ GB}
 $$
 
 > 💡 For **MoE** models, **all** expert parameters are loaded into VRAM.
@@ -55,7 +55,7 @@ $$
 ### 2. KV Cache
 
 $$
-\text{KV Cache} = \frac{2 \times \text{layers} \times \text{numKVHeads} \times \text{headDim} \times \text{contextLength} \times \text{concurrency} \times \text{kvBytesPerParam}}{2^{30}} \text{ GB}
+\text{KV Cache} = \frac{2 \times \text{layers} \times \text{numKVHeads} \times \text{headDim} \times \text{contextLength} \times \text{concurrency} \times \text{kvBytesPerParam}}{1024^{3}} \text{ GB}
 $$
 
 > 💡 Calculated using the model's architecture dimensions (activated parameters).
@@ -63,7 +63,7 @@ $$
 ### 3. Activations
 
 $$
-\text{Activations} \approx \frac{\text{concurrency} \times \text{contextLength} \times \text{hiddenSize} \times 18 \times \text{bytesPerParam}}{2^{30}} \text{ GB}
+\text{Activations} \approx \frac{\text{concurrency} \times \text{contextLength} \times \text{hiddenSize} \times 18 \times \text{bytesPerParam}}{1024^{3}} \text{ GB}
 $$
 
 ### 4. Engine Overhead
