@@ -237,9 +237,6 @@ function AppContent() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px] font-medium hidden md:inline-flex" style={{ borderColor: isDark ? 'rgba(51,65,85,0.5)' : 'rgba(203,213,225,0.7)', color: isDark ? '#64748b' : '#94a3b8' }}>
-            <Server className="w-2.5 h-2.5 mr-1" /> 无限显存集群
-          </Badge>
           <button
             onClick={toggleTheme}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200"
