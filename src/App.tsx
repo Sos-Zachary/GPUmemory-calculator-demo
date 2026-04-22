@@ -30,7 +30,6 @@ import {
   BookOpen,
   Lightbulb,
   Check,
-  ChevronDown,
 } from 'lucide-react';
 import {
   BarChart,
