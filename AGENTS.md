@@ -1,3 +1,4 @@
+<!-- From: AGENTS.md -->
 # AGENTS.md — LLM VRAM Calculator
 
 > AI coding agent guide for this project. Read this first before making any changes.
@@ -23,14 +24,14 @@ The entire application UI is implemented as a monolithic single-page dashboard w
 | Form Validation | Zod | ^4.3.5 |
 | Forms | React Hook Form | ^7.70.0 |
 
-**Node.js version:** 20 (as noted in `info.md`)
+**Node.js version:** 22 (used in CI and local development)
 
 ## Project Structure
 
 ```
 src/
 ├── main.tsx              # Entry point: StrictMode + BrowserRouter (router is mounted but unused)
-├── App.tsx               # Root component containing ALL application UI logic (~750 lines)
+├── App.tsx               # Root component containing ALL application UI logic (~970 lines)
 ├── App.css               # Empty — all styles moved to index.css
 ├── index.css             # Global styles, Tailwind directives, CSS variables, custom scrollbar, theme system
 ├── components/
@@ -38,17 +39,17 @@ src/
 ├── pages/
 │   └── Home.tsx          # Unused boilerplate from Vite template
 ├── hooks/
-│   ├── useTheme.tsx      # Custom theme context (dark/light toggle via CSS classes)
+│   ├── useTheme.tsx      # Custom theme context (dark/light toggle via CSS classes on document.documentElement)
 │   └── use-mobile.ts     # useIsMobile hook (768px breakpoint)
 ├── lib/
 │   └── utils.ts          # `cn()` utility (clsx + tailwind-merge)
 └── data/
-    └── modelData.ts      # Domain models, static data, VRAM calculation logic (~550 lines)
+    └── modelData.ts      # Domain models, static data, VRAM calculation logic (~620 lines)
 ```
 
 ### Key Architectural Notes
 
-- **Monolithic UI:** Despite having a `pages/` directory, the entire application UI lives in a single `App.tsx` file. Helper components (`ChartTooltip`, `PresetBtn`, `AccordionCard`, `FormulaBlock`) are defined at the bottom of the same file. `pages/Home.tsx` is dead boilerplate code.
+- **Monolithic UI:** Despite having a `pages/` directory, the entire application UI lives in a single `App.tsx` file. Helper components (`ChartTooltip`, `PresetBtn`, `AccordionCard`, `FormulaBlock`, `FormulaTooltip`) are defined at the bottom of the same file. `pages/Home.tsx` is dead boilerplate code.
 - **No routing:** `BrowserRouter` is mounted in `main.tsx` but no routes are defined anywhere.
 - **Business logic in data layer:** `src/data/modelData.ts` contains all domain data (model specs, quantization methods, inference engines) and the VRAM calculation functions (`calculateVRAM`, `getGPURecommendations`).
 
@@ -73,14 +74,12 @@ npm run lint
 
 ### Vite Configuration
 
-- `base: './'` — relative paths for static hosting compatibility
+- `base: '/LLM-GPU-calculator-demo/'` — configured for GitHub Pages deployment under this subpath.
 - Dev server port: `3000`
 - Path alias: `@/` → `./src`
 - Plugins: `@vitejs/plugin-react`, `kimi-plugin-inspect-react` (dev inspection only)
 
-## Code Style Guidelines
-
-### TypeScript Configuration
+## TypeScript Configuration
 
 - Target: ES2022, Module: ESNext, JSX: `react-jsx`
 - Strict mode enabled with additional checks:
@@ -88,23 +87,25 @@ npm run lint
   - `noUnusedParameters: true`
   - `erasableSyntaxOnly: true`
   - `noFallthroughCasesInSwitch: true`
+  - `noUncheckedSideEffectImports: true`
 - Path mapping: `@/*` → `./src/*`
+- Project references: `tsconfig.app.json` (src/) and `tsconfig.node.json` (vite.config.ts)
 
-### ESLint
+## ESLint
 
 - Flat config format (ESLint v9)
 - Extends: `@eslint/js` recommended, `typescript-eslint` recommended, `eslint-plugin-react-hooks` recommended, `eslint-plugin-react-refresh` vite config
 - Lints `**/*.{ts,tsx}` files; ignores `dist/`
 - **No Prettier is configured.** Do not add Prettier without explicit approval.
 
-### Styling Conventions
+## Styling Conventions
 
 - Tailwind CSS is used for layout and utility classes.
 - **Inline `style` props are heavily used for dynamic theming** (dark vs. light conditional colors via `isDark` boolean). This is an intentional pattern in this project. When adding new themed elements, follow the existing pattern of using inline styles with `isDark ? darkValue : lightValue`.
 - The `cn()` utility from `src/lib/utils.ts` should be used for conditional Tailwind class merging.
 - shadcn/ui components follow the standard pattern: Radix UI primitives + Tailwind + `class-variance-authority` (CVA) for variants.
 
-### Custom Theme System
+## Custom Theme System
 
 The app uses a **custom theme context** (`src/hooks/useTheme.tsx`), not `next-themes` (which is installed but unused). Theme classes (`theme-dark`, `theme-light`) are applied to `document.documentElement`. `index.css` defines extensive CSS variable sets for both themes.
 
@@ -129,10 +130,13 @@ The VRAM calculation lives in `src/data/modelData.ts` and follows industry-stand
 
 ## Deployment
 
-No CI/CD or deployment configuration is present. However:
-- `base: './'` in `vite.config.ts` makes the build suitable for static hosting (GitHub Pages, Netlify, Vercel, etc.)
-- Build output goes to `dist/` (standard Vite default)
-- No Docker, no `vercel.json`, no `netlify.toml`
+The project is deployed to **GitHub Pages** via a GitHub Actions workflow (`.github/workflows/deploy.yml`).
+
+- **Trigger:** Push to `main` branch or manual `workflow_dispatch`.
+- **Build steps:** `npm ci` → `npm run build` → upload `dist/` artifact → deploy.
+- **Node version:** 22
+- `base: '/LLM-GPU-calculator-demo/'` in `vite.config.ts` makes the build suitable for this GitHub Pages subpath.
+- No Docker, no `vercel.json`, no `netlify.toml`.
 
 ## Security Considerations
 

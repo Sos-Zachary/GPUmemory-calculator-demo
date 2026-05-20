@@ -377,6 +377,14 @@ export const concurrencyPresets = [
 // VRAM Calculation Functions
 // ==========================================
 
+export interface BatchConfig {
+  maxBatchTokens: number;    // 推荐的最大 batch token 数
+  prefillBatchSize: number;  // prefill 阶段能同时处理的满长请求数
+  decodeBatchSize: number;   // decode 阶段能同时处理的请求数
+  prefillTokenCount: number; // prefill 峰值：瞬时处理的 token 数
+  decodeTokenCount: number;  // decode 峰值：瞬时处理的 token 数
+}
+
 export interface VRAMBreakdown {
   modelWeights: number;      // GB
   kvCache: number;           // GB
@@ -384,6 +392,7 @@ export interface VRAMBreakdown {
   activations: number;       // GB
   engineOverhead: number;    // GB
   total: number;             // GB
+  batchConfig: BatchConfig;  // 当前配置下的 batch 调度参数
 }
 
 export interface CalculationParams {
@@ -394,6 +403,52 @@ export interface CalculationParams {
   concurrency: number;
   kvCacheQuant?: QuantMethod;     // optional KV cache quantization (default FP16)
   prefixCacheHitRate?: number;    // 0-1, prefix caching hit rate (default 0)
+  maxBatchTokens?: number;        // 可选：用户自定义 max_batch_tokens，否则自动推荐
+}
+
+/**
+ * Calculate recommended max_batch_tokens and corresponding batch sizes
+ * for the given configuration. Balances prefill throughput and decode concurrency.
+ */
+export function calculateBatchConfig(
+  contextLength: number,
+  concurrency: number,
+  engine: InferenceEngine
+): BatchConfig {
+  // Strategy: guarantee at least 1 full-context prefill, and at least 50% target concurrency in decode.
+  const decodeTarget = Math.max(1, Math.ceil(concurrency * 0.5));
+  const prefillMin = contextLength;
+  let maxBatchTokens = Math.max(prefillMin, decodeTarget);
+
+  // Upper bound based on context length to avoid over-allocation
+  if (contextLength <= 4096) {
+    maxBatchTokens = Math.min(maxBatchTokens, Math.max(prefillMin * 2, 4096));
+  } else if (contextLength <= 16384) {
+    maxBatchTokens = Math.min(maxBatchTokens, Math.max(prefillMin, 8192));
+  } else if (contextLength <= 65536) {
+    maxBatchTokens = Math.min(maxBatchTokens, 12288);
+  } else {
+    maxBatchTokens = Math.min(maxBatchTokens, 8192);
+  }
+
+  // Engine-specific tuning
+  if (engine.id === 'llamacpp') {
+    maxBatchTokens = Math.min(maxBatchTokens, 2048);
+  }
+
+  // Align to 256
+  maxBatchTokens = Math.max(256, Math.ceil(maxBatchTokens / 256) * 256);
+
+  const prefillBatchSize = Math.max(1, Math.min(Math.floor(maxBatchTokens / contextLength), concurrency));
+  const decodeBatchSize = Math.min(maxBatchTokens, concurrency);
+
+  return {
+    maxBatchTokens,
+    prefillBatchSize,
+    decodeBatchSize,
+    prefillTokenCount: prefillBatchSize * contextLength,
+    decodeTokenCount: decodeBatchSize,
+  };
 }
 
 /**
@@ -403,44 +458,68 @@ export interface CalculationParams {
  * 1. Model Weights = totalParams(B) × bytesPerParam / 2^30
  * 2. KV Cache = 2 × layers × numKVHeads × headDim × contextLength × concurrency × kvBytes / 2^30
  *    (2 for K + V tensors)
- * 3. Activations ≈ batch × seq_len × hiddenSize × 18 × bytesPerParam / 2^30
- *    (factor 18 = attention Q/K/V/O + FFN intermediate buffers for single layer,
- *     inference uses layer-by-layer computation so only ~1 layer stored at a time)
+ * 3. Activations ≈ effectiveBatchTokens × hiddenSize × factor × 2 / 2^30
+ *    (factor dynamically computed from ffnSize and architecture;
+ *     FP16=2 bytes fixed for activations regardless of weight quantization;
+ *     effectiveBatchTokens capped by max_batch_tokens)
  * 4. Engine Overhead = (Model Weights + KV Cache + Activations) × overheadFactor
- *    (covers PagedAttention metadata, CUDA workspace, activation buffers, etc.)
  */
 export function calculateVRAM(params: CalculationParams): VRAMBreakdown {
-  const { model, quantMethod, engine, contextLength, concurrency, kvCacheQuant, prefixCacheHitRate } = params;
+  const { model, quantMethod, engine, contextLength, concurrency, kvCacheQuant, prefixCacheHitRate, maxBatchTokens: userMaxBatchTokens } = params;
 
   // KV cache bytes per parameter: default FP16 (2 bytes).
-  // Advanced engines support KV cache quantization (FP8/INT8) independent of weight quantization.
   const kvBytesPerParam = kvCacheQuant ? kvCacheQuant.bytesPerParam : 2;
 
   // 1. Model Weights — ALL parameters must be loaded (including all experts for MoE)
   const modelWeightsGB = model.totalParams * 1e9 * quantMethod.bytesPerParam / (1024 ** 3);
 
-  // 2. KV Cache — size depends on model architecture (layers, kv_heads, head_dim),
-  //    NOT on parameter count. MoE benefits: KV Cache scales with active params' config.
+  // 2. KV Cache — size depends on model architecture, NOT on parameter count.
   const perTokenKVBytes = 2 * model.layers * model.numKVHeads * model.headDim * kvBytesPerParam;
   const totalKVCacheBytes = perTokenKVBytes * contextLength * concurrency;
   const originalKVCacheGB = totalKVCacheBytes / (1024 ** 3);
 
-  // Apply prefix caching: shared prefix KV is stored once and reused across requests.
-  // hitRate=0.7 means 70% of KV Cache is shared and only stored once.
+  // Apply prefix caching
   const hitRate = prefixCacheHitRate ?? 0;
   const effectiveConcurrency = concurrency === 1
     ? 1
     : 1 + (concurrency - 1) * (1 - hitRate);
   const kvCacheGB = originalKVCacheGB * (effectiveConcurrency / concurrency);
 
-  // 3. Activations — simplified estimation for inference (single forward pass, no gradients).
-  // Factor 18 accounts for: Q/K/V/O projections (4x) + FFN up/gate/down (3x) + buffers (~11x).
-  // During inference, activations are computed layer-by-layer, so we don't need all layers simultaneously.
-  const ACTIVATION_FACTOR = 18;
-  const activationBytes = concurrency * contextLength * model.hiddenSize * ACTIVATION_FACTOR * quantMethod.bytesPerParam;
+  // 3. Batch Config — determine effective batch tokens for activation calculation
+  const batchConfig = calculateBatchConfig(contextLength, concurrency, engine);
+  if (userMaxBatchTokens !== undefined) {
+    batchConfig.maxBatchTokens = userMaxBatchTokens;
+    batchConfig.prefillBatchSize = Math.max(1, Math.min(Math.floor(userMaxBatchTokens / contextLength), concurrency));
+    batchConfig.decodeBatchSize = Math.min(userMaxBatchTokens, concurrency);
+    batchConfig.prefillTokenCount = batchConfig.prefillBatchSize * contextLength;
+    batchConfig.decodeTokenCount = batchConfig.decodeBatchSize;
+  }
+
+  // Effective tokens for activation peak (prefill phase, capped by max_batch_tokens)
+  const effectiveBatchTokens = Math.min(batchConfig.maxBatchTokens, concurrency * contextLength);
+
+  // 4. Activations — fixed FP16 (2 bytes), dynamic factor based on ffnSize and architecture.
+  // Factor decomposition (relative to hiddenSize):
+  //   - Q/K/V/O projections: 4
+  //   - FFN Up + Gate (SwiGLU): 2 × (ffnSize / hiddenSize) × moeScale
+  //   - FFN Down: 1
+  //   - LayerNorm (pre + post): 2
+  //   - Attention score & buffers: 3 (empirical)
+  const FP16_BYTES = 2;
+  const ffnRatio = model.ffnSize / model.hiddenSize;
+
+  // MoE FFN scale: activated experts only. Empirically ~0.3× of Dense FFN activation.
+  const ffnMoEScale = model.architecture === 'MoE'
+    ? Math.min(1, Math.max(0.3, (model.activeParams / model.totalParams) * 3.5))
+    : 1;
+
+  const ACTIVATION_FACTOR = 10 + 2 * ffnRatio * ffnMoEScale;
+  // 10 = QKVO(4) + ffn_down(1) + layernorm(2) + buffers(3)
+
+  const activationBytes = effectiveBatchTokens * model.hiddenSize * ACTIVATION_FACTOR * FP16_BYTES;
   const activationsGB = activationBytes / (1024 ** 3);
 
-  // 4. Engine Overhead — applies to ALL memory (weights + KV cache + activations)
+  // 5. Engine Overhead
   const overheadGB = (modelWeightsGB + kvCacheGB + activationsGB) * engine.overheadFactor;
 
   const total = modelWeightsGB + kvCacheGB + activationsGB + overheadGB;
@@ -452,6 +531,7 @@ export function calculateVRAM(params: CalculationParams): VRAMBreakdown {
     activations: Math.round(activationsGB * 100) / 100,
     engineOverhead: Math.round(overheadGB * 100) / 100,
     total: Math.round(total * 100) / 100,
+    batchConfig,
   };
 }
 

@@ -649,15 +649,15 @@ function AppContent() {
                 title="激活值"
                 formula={
                   <>
-                    <FormulaTooltip tip="并发请求数">{concurrency}</FormulaTooltip>
-                    {' × '}
-                    <FormulaTooltip tip="上下文长度（token 数）">{(contextLength / 1024).toFixed(0)}K</FormulaTooltip>
+                    <FormulaTooltip tip="瞬时处理 token 数（受 max_batch_tokens 限制）">{vram.batchConfig.prefillTokenCount.toLocaleString()}</FormulaTooltip>
                     {' × '}
                     <FormulaTooltip tip="隐藏层维度">{model.hiddenSize}</FormulaTooltip>
                     {' × '}
-                    <FormulaTooltip tip="经验系数，表示中间状态数">18</FormulaTooltip>
+                    <FormulaTooltip tip={`动态系数 (ffnSize/hidden=${(model.ffnSize / model.hiddenSize).toFixed(2)}${model.architecture === 'MoE' ? `, MoE缩放=${Math.min(1, Math.max(0.3, (model.activeParams / model.totalParams) * 3.5)).toFixed(2)}` : ''})`}>
+                      {(10 + 2 * (model.ffnSize / model.hiddenSize) * (model.architecture === 'MoE' ? Math.min(1, Math.max(0.3, (model.activeParams / model.totalParams) * 3.5)) : 1)).toFixed(1)}
+                    </FormulaTooltip>
                     {' × '}
-                    <FormulaTooltip tip="激活值数据类型字节数">{quant.bytesPerParam}byte</FormulaTooltip>
+                    <FormulaTooltip tip="激活值固定 FP16 (2 字节)，不随权重量化改变">2byte</FormulaTooltip>
                     {' / '}
                     <FormulaTooltip tip="字节转 GB">1024³</FormulaTooltip>
                   </>
@@ -666,6 +666,59 @@ function AppContent() {
                 color="#10b981"
                 isDark={isDark}
               />
+              {/* Batch Config Display */}
+              <div
+                className="rounded-lg p-2 border"
+                style={{
+                  backgroundColor: isDark ? 'rgba(30,41,59,0.3)' : 'rgba(241,245,249,0.7)',
+                  borderColor: isDark ? 'rgba(51,65,85,0.3)' : 'rgba(203,213,225,0.5)',
+                }}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold" style={{ color: isDark ? '#e2e8f0' : '#334155' }}>
+                    Batch 调度参数
+                  </span>
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                    style={{
+                      backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : 'rgba(37,99,235,0.1)',
+                      color: isDark ? '#60a5fa' : '#2563eb',
+                    }}
+                  >
+                    max_batch_tokens = {vram.batchConfig.maxBatchTokens.toLocaleString()}
+                  </span>
+                </div>
+                <div className="font-mono text-[10px] rounded px-1.5 py-1 break-all leading-relaxed space-y-1"
+                  style={{ backgroundColor: isDark ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.6)', color: isDark ? '#94a3b8' : '#475569' }}
+                >
+                  <div className="flex justify-between">
+                    <span>
+                      {'Prefill: '}
+                      <FormulaTooltip tip="同时做 prefill 的满长请求数">batch_size</FormulaTooltip>
+                      {' = '}
+                      <span className="font-bold" style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>{vram.batchConfig.prefillBatchSize}</span>
+                    </span>
+                    <span>
+                      {'('}
+                      <FormulaTooltip tip="prefill 瞬时处理 token 数 = batch_size × 上下文长度">{vram.batchConfig.prefillTokenCount.toLocaleString()} tokens</FormulaTooltip>
+                      {')'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>
+                      {'Decode: '}
+                      <FormulaTooltip tip="同时做 decode 的请求数（每请求 1 token）">batch_size</FormulaTooltip>
+                      {' = '}
+                      <span className="font-bold" style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>{vram.batchConfig.decodeBatchSize}</span>
+                    </span>
+                    <span>
+                      {'('}
+                      <FormulaTooltip tip="decode 瞬时处理 token 数 = batch_size × 1">{vram.batchConfig.decodeTokenCount.toLocaleString()} tokens</FormulaTooltip>
+                      {')'}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <FormulaBlock
                 title="引擎开销"
                 formula={
