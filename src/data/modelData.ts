@@ -415,38 +415,50 @@ export function calculateBatchConfig(
   concurrency: number,
   engine: InferenceEngine
 ): BatchConfig {
-  // Strategy: guarantee at least 1 full-context prefill, and at least 50% target concurrency in decode.
-  const decodeTarget = Math.max(1, Math.ceil(concurrency * 0.5));
-  const prefillMin = contextLength;
-  let maxBatchTokens = Math.max(prefillMin, decodeTarget);
+  // Strategy:
+  // 1. Low concurrency (≤4): support all requests doing full-context prefill simultaneously
+  // 2. High concurrency: cap at 4 full-context prefills (GPU compute limit)
+  //    or use chunked prefill for very long contexts
+  const maxSimultaneousPrefill = Math.min(concurrency, 4);
+  let maxBatchTokens = maxSimultaneousPrefill * contextLength;
 
-  // Upper bound based on context length to avoid over-allocation
+  // Also ensure decode can handle at least 50% of target concurrency
+  const decodeTarget = Math.max(1, Math.ceil(concurrency * 0.5));
+  maxBatchTokens = Math.max(maxBatchTokens, decodeTarget);
+
+  // Upper bound to avoid extreme over-allocation
+  // Short context: more headroom for concurrent prefill
+  // Long context: cap to prevent excessive activation memory
+  let upperBound: number;
   if (contextLength <= 4096) {
-    maxBatchTokens = Math.min(maxBatchTokens, Math.max(prefillMin * 2, 4096));
+    upperBound = 65536;
   } else if (contextLength <= 16384) {
-    maxBatchTokens = Math.min(maxBatchTokens, Math.max(prefillMin, 8192));
-  } else if (contextLength <= 65536) {
-    maxBatchTokens = Math.min(maxBatchTokens, 12288);
+    upperBound = 131072;
   } else {
-    maxBatchTokens = Math.min(maxBatchTokens, 8192);
+    upperBound = 262144;
   }
+  maxBatchTokens = Math.min(maxBatchTokens, upperBound);
 
   // Engine-specific tuning
   if (engine.id === 'llamacpp') {
-    maxBatchTokens = Math.min(maxBatchTokens, 2048);
+    maxBatchTokens = Math.min(maxBatchTokens, 4096);
   }
 
   // Align to 256
   maxBatchTokens = Math.max(256, Math.ceil(maxBatchTokens / 256) * 256);
 
-  const prefillBatchSize = Math.max(1, Math.min(Math.floor(maxBatchTokens / contextLength), concurrency));
+  // Calculate batch sizes
+  const isChunkedPrefill = maxBatchTokens < contextLength;
+  const prefillBatchSize = isChunkedPrefill
+    ? 1
+    : Math.max(1, Math.min(Math.floor(maxBatchTokens / contextLength), concurrency));
   const decodeBatchSize = Math.min(maxBatchTokens, concurrency);
 
   return {
     maxBatchTokens,
     prefillBatchSize,
     decodeBatchSize,
-    prefillTokenCount: prefillBatchSize * contextLength,
+    prefillTokenCount: isChunkedPrefill ? maxBatchTokens : prefillBatchSize * contextLength,
     decodeTokenCount: decodeBatchSize,
   };
 }
@@ -489,14 +501,20 @@ export function calculateVRAM(params: CalculationParams): VRAMBreakdown {
   const batchConfig = calculateBatchConfig(contextLength, concurrency, engine);
   if (userMaxBatchTokens !== undefined) {
     batchConfig.maxBatchTokens = userMaxBatchTokens;
-    batchConfig.prefillBatchSize = Math.max(1, Math.min(Math.floor(userMaxBatchTokens / contextLength), concurrency));
+    const isChunkedPrefill = userMaxBatchTokens < contextLength;
+    batchConfig.prefillBatchSize = isChunkedPrefill
+      ? 1
+      : Math.max(1, Math.min(Math.floor(userMaxBatchTokens / contextLength), concurrency));
     batchConfig.decodeBatchSize = Math.min(userMaxBatchTokens, concurrency);
-    batchConfig.prefillTokenCount = batchConfig.prefillBatchSize * contextLength;
+    batchConfig.prefillTokenCount = isChunkedPrefill ? userMaxBatchTokens : batchConfig.prefillBatchSize * contextLength;
     batchConfig.decodeTokenCount = batchConfig.decodeBatchSize;
   }
 
-  // Effective tokens for activation peak (prefill phase, capped by max_batch_tokens)
-  const effectiveBatchTokens = Math.min(batchConfig.maxBatchTokens, concurrency * contextLength);
+  // Effective tokens for activation peak (mixed batch: prefill + decode in same GPU)
+  // In continuous batching, a batch may contain both prefill and decode requests.
+  // Prefill requests contribute large token counts; decode requests contribute 1 token each
+  // but also require attention over full context history.
+  const effectiveBatchTokens = batchConfig.prefillTokenCount + batchConfig.decodeBatchSize;
 
   // 4. Activations — fixed FP16 (2 bytes), dynamic factor based on ffnSize and architecture.
   // Factor decomposition (relative to hiddenSize):
